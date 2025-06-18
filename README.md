@@ -1,4 +1,4 @@
-# 🧬 DataScience2025 Project  
+# DataScience2025 Project  
 ## Thyroid Cancer Classification: Malignant vs. Benign
 
 ---
