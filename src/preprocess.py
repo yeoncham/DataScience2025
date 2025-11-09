@@ -1,76 +1,112 @@
-import pandas as pd
-import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-
-class AddNewFeature(BaseEstimator, TransformerMixin):
-    """임상 수치 기반 파생변수 생성"""
+class add_new_feature(BaseEstimator, TransformerMixin):
     def t4_category(self, x):
-        if x < 6: return 'T4_Low'
-        elif x > 11.98: return 'T4_High'
-        else: return 'T4_Normal'
+        if x < 6:
+            return 'T4_Low'
+        elif x > 11.98:
+            return 'T4_High'
+        else:
+            return 'T4_Normal'
     def t3_category(self, x):
-        if x < 1.4: return 'T3_Low'
-        elif x > 3: return 'T3_High'
-        else: return 'T3_Normal'
+        if x < 1.4:
+            return 'T3_Low'
+        elif x > 3:
+            return 'T3_High'
+        else:
+            return 'T3_Normal'
+    def tsh_category(self, x):
+        if x < 0.27:
+            return 'TSH_Low'
+        elif x > 4.2:
+            return 'TSH_High'
+        else:
+            return 'TSH_Normal'
+    
     def age_category(self, x):
-        if x < 30: return 'Young'
-        elif x < 50: return 'Middle'
-        elif x < 65: return 'Senior'
-        else: return 'Elderly'
-
-    def transform(self, X, y=None):
-        X = X.copy()
-        X['T3_Cat'] = X['T3_Result'].apply(self.t3_category)
-        X['T4_Cat'] = X['T4_Result'].apply(self.t4_category)
-        X['Race&T3'] = X['Race'].astype(str) + '_' + X['T3_Cat'].astype(str)
-        X['Family&Iodine'] = X['Family_Background'].astype(str) + '_' + X['Iodine_Deficiency'].astype(str)
-        X['T3&T4'] = X['T3_Cat'].astype(str) + '_' + X['T4_Cat'].astype(str)
-        return X
-
-    def fit(self, X, y=None):
+        if x < 30:
+            return 'Young'
+        elif x < 50:
+            return 'Middle'
+        elif x < 65:
+            return 'Senior'
+        else:
+            return 'Elderly'
+    
+    def nodule_size_category(self, x):
+        if x < 1.0:
+            return 'Small'
+        elif x < 2.0:
+            return 'Medium'
+        elif x < 4.0:
+            return 'Large'
+        else:
+            return 'VeryLarge'
+    
+    def fit(self, x, y=None):
         return self
+    def transform(self, x, y=None):
+        x = x.copy()
+        
+        x['T3_Result_Cat'] = pd.cut(x['T3_Result'], 
+                                   bins=[-np.inf, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, np.inf],
+                                   labels=[0, 1, 2, 3, 4, 5, 6, 7])
+        
+        x['T3_Cat'] = x['T3_Result'].apply(lambda x : self.t3_category(x))
+        x['T4_Cat'] = x['T4_Result'].apply(lambda x : self.t4_category(x))
+        
+        x['Race&T3'] = x['Race'].astype(str) + x['T3_Result_Cat'].astype(str)
+        x['Family&Iodine'] = x['Family_Background'].astype(str) + x['Iodine_Deficiency'].astype(str)
+        x['T3&T4'] = x['T3_Cat'].astype(str) + x['T4_Cat'].astype(str)
+        return x
 
-class Dropper(BaseEstimator, TransformerMixin):
-    """특정 피처 제거"""
+class dropper(BaseEstimator, TransformerMixin):
     def __init__(self, columns):
         self.columns = columns
-
-    def transform(self, X, y=None):
-        return X.drop(self.columns, axis=1)
-
-    def fit(self, X, y=None):
+        
+    def fit(self, x, y=None):
         return self
+        
+    def transform(self, x, y=None):
+        x = x.copy()
+        return x.drop(self.columns, axis=1)
 
-class CustomEncoder(BaseEstimator, TransformerMixin):
-    """범주형 원핫 + 수치형 스케일링"""
+class custom_encoder(BaseEstimator, TransformerMixin):
     def __init__(self):
         self.encoder = None
-
-    def fit(self, X, y=None):
-        num_cols = X.select_dtypes(include=np.number).columns
-        cat_cols = X.select_dtypes(exclude=np.number).columns
+        self.num_feature = None
+        self.cat_feature = None
+        self.OneHot_feature = None
+    def fit(self, x, y=None):
+        self.num_feature = x.select_dtypes('number').columns.to_list()
+        self.cat_feature = x.select_dtypes(['object', 'category']).columns.to_list()
         self.encoder = ColumnTransformer([
-            ('OneHot', OneHotEncoder(sparse_output=False), cat_cols),
-            ('Scaler', StandardScaler(), num_cols)
+            ('OneHot', OneHotEncoder(sparse_output=False), self.cat_feature),
+            ('Scaler', StandardScaler(), self.num_feature)
         ])
-        self.encoder.fit(X)
+        self.encoder.fit(x)
+        self.OneHot_feature = self.encoder.named_transformers_['OneHot'].get_feature_names_out(self.cat_feature).tolist()
+        
         return self
+    def transform(self, x, y=None):
+        x = x.copy()
+        encoded = self.encoder.transform(x)
+        
+        return pd.DataFrame(
+            encoded,
+            columns=self.OneHot_feature + self.num_feature
+        )
 
-    def transform(self, X, y=None):
-        encoded = self.encoder.transform(X)
-        cat_features = self.encoder.named_transformers_['OneHot'].get_feature_names_out()
-        num_features = X.select_dtypes(include=np.number).columns
-        return pd.DataFrame(encoded, columns=list(cat_features) + list(num_features))
+# 파이프라인 구성 
+useless_feature = ['T3_Result', 'T4_Result', 'TSH_Result', 
+                   'Age', 'Nodule_Size', 
+                   'T3_Cat', 'T4_Cat', 'T3_Result_Cat']
+preprocessor = Pipeline([
+    ('add_new_feature', add_new_feature()),
+    ('dropper', dropper(useless_feature)),
+    ('encoder', custom_encoder())
+])
 
-def create_preprocessor():
-    """전체 전처리 파이프라인 반환"""
-    useless = ['T3_Result', 'T4_Result', 'TSH_Result', 'Age', 'Nodule_Size', 
-               'T3_Cat', 'T4_Cat', 'T3_Result_Cat']
-    return Pipeline([
-        ('add_features', AddNewFeature()),
-        ('dropper', Dropper(useless)),
-        ('encoder', CustomEncoder())
-    ])
+dumy_pre = Pipeline([
+    ('add_feature', add_new_feature()),
+    ('dropper', dropper(useless_feature+['Race&T3', 'Family&Iodine', 'T3&T4'])), 
+    ('encoder', custom_encoder())
+])
