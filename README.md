@@ -35,10 +35,11 @@
 
 | Feature | 설명 |
 |:--|:--|
-| TB | 케이스 ID |
-| Age | 환자 나이 |
+| ID | 샘플별 고유 ID |
+| Age | 환자의 나이 |
 | Gender | 성별 |
-| Country / Race | 국적 및 인종 |
+| Country | 국적 |
+| Race | 인종 |
 | Family_Background | 가족력 여부 |
 | Radiation_History | 방사선 노출 이력 |
 | Iodine_Deficiency | 요오드 결핍 여부 |
@@ -46,9 +47,9 @@
 | Weight_Risk | 체중 관련 위험도 |
 | Diabetes | 당뇨병 여부 |
 | Nodule_Size | 갑상선 결절 크기 |
-| TSH_Result | TSH 호르몬 수치 |
-| T4_Result | T4 호르몬 수치 |
-| T3_Result | T3 호르몬 수치 |
+| TSH_Result | TSH 호르몬 검사 결과 |
+| T4_Result | T4 호르몬 검사 결과 |
+| T3_Result | T3 호르몬 검사 결과 |
 | Cancer | 라벨 (0=양성, 1=악성) |
 
 ---
@@ -69,7 +70,7 @@
    - 연속형 변수의 분포를 시각화하여 임상 기준 임계값(Thresholds) 설정  
 
 3. **파생 변수 생성 (Feature Engineering)**  
-   - 가설들을 토대로 파생 변수 생성성
+   - 가설들을 토대로 파생 변수 생성
 
 ---
 
